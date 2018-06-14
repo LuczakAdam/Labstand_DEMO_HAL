@@ -36,8 +36,11 @@ uint8_t uartIntFlag = 0;
 uint8_t pbIntFlag = 0;
 uint8_t adcOnLED = 0;
 uint8_t i = 0;
+extern uint16_t adcValue;
 
 
+
+/* Main function */
 int main(void)
 {
 
@@ -90,12 +93,17 @@ int main(void)
 			pbIntFlag = 0;
 		}
 
+		if (adcOnLED){
 
+			Labstand_LED_Write( 0b11111111 >> (8-((adcValue+1)/512)));
+
+		}
   }
-
 }
 
 
+
+/* Function parsing commands sent by Bluetooth */
 void Labstand_Parse_Command(char* command){
 
 	if (!strncmp(command, "LED:" , 4)){
@@ -103,6 +111,19 @@ void Labstand_Parse_Command(char* command){
 	}
 	else if (!strncmp(command, "EPD:" , 4)){
 		Labstand_EPD_Command(command+4);
+	}
+	else if (!strncmp(command, "ADC:" , 4)){
+		Labstand_ADC_Command(command+4);
+	}
+	else if  (!strncmp(command, "DAC:" , 4)){
+		Labstand_DAC_Command(command+4);
+	}
+	else if (!strcmp(command,"RESET")){
+		SEND_COMMAND_RECEIVED
+		NVIC_SystemReset();
+	}
+	else{
+		SEND_COMMAND_INVALID
 	}
 
 }
@@ -122,7 +143,7 @@ void Labstand_LED_Command(char* value){
 
 			if (value[i] != '1' && value[i] != '0') {
 
-				HAL_UART_Transmit(&huart, (unsigned char*)COMMAND_LED_INVALID_MSG, strlen(COMMAND_LED_INVALID_MSG), TIMEOUT);
+				SEND_COMMAND_INVALID
 				return;
 
 			} else if (value[i] == '1')
@@ -131,11 +152,12 @@ void Labstand_LED_Command(char* value){
 		}
 	}
 	else{
-		HAL_UART_Transmit(&huart, (unsigned char*) COMMAND_LED_INVALID_MSG, strlen(COMMAND_LED_INVALID_MSG), TIMEOUT);
+		SEND_COMMAND_INVALID
 		return;
 	}
 
-	HAL_UART_Transmit(&huart, (uint8_t*) COMMAND_RECV_MSG,strlen(COMMAND_RECV_MSG), TIMEOUT);
+	SEND_COMMAND_RECEIVED
+	adcOnLED = 0;
 	Labstand_LED_Write(LED_values);
 
 }
@@ -145,7 +167,7 @@ void Labstand_EPD_Command(char* value){
 
 	if(strlen(value) > 0){
 
-		HAL_UART_Transmit(&huart, (uint8_t*) COMMAND_RECV_MSG,strlen(COMMAND_RECV_MSG), TIMEOUT);
+		SEND_COMMAND_RECEIVED
 
 		if (!strcmp(value,"CLEAR")){
 			BSP_EPD_Clear(EPD_COLOR_WHITE);
@@ -154,8 +176,58 @@ void Labstand_EPD_Command(char* value){
 		else BSP_EPD_Write_Text(value);
 
 	}
-	else HAL_UART_Transmit(&huart, (uint8_t*) COMMAND_INVALID_MSG,strlen(COMMAND_INVALID_MSG), TIMEOUT);
+	else SEND_COMMAND_INVALID
 
+}
+
+/* Function executed after analog-to-digital converter command is sent by Bluetooth */
+void Labstand_ADC_Command(char* value){
+
+	char msg[20];
+
+	if (!strcmp(value,"READ")){
+
+		sprintf(msg, "ADC Voltage: %.3fV\r\n", Labstand_ADC_GetVoltage());
+		HAL_UART_Transmit(&huart, (uint8_t*)msg,strlen(msg), TIMEOUT);
+
+	}
+	else if (!strcmp(value,"LED")){
+
+		SEND_COMMAND_RECEIVED
+		adcOnLED = 1;
+
+	}
+	else SEND_COMMAND_INVALID
+}
+
+/* Function executed after digital-to-analog converter command is sent by Bluetooth */
+void Labstand_DAC_Command(char* value){
+
+	if (!strcmp(value,"START")){
+
+		SEND_COMMAND_RECEIVED
+		Labstand_DAC_GenerateSignal();
+
+	}
+	else if (!strcmp(value,"CLEAR")){
+
+		SEND_COMMAND_RECEIVED
+		Labstand_DAC_Clear();
+
+	}
+	else {
+
+		float dacVoltage = 0;
+		sscanf(value,"%f",&dacVoltage);
+
+		if (dacVoltage >= 0.0 && dacVoltage <= 3.3){
+
+			SEND_COMMAND_RECEIVED
+			Labstand_DAC_SetVoltage(dacVoltage);
+
+		}
+		else SEND_COMMAND_INVALID
+	}
 }
 
 /* Pushbutton interrupt handler */

@@ -1,3 +1,10 @@
+/*
+* Adam Luczak
+* Laboratory stand with Cortex-M0 Microcontroller and E-Paper display
+* Master Thesis 2018
+* High-level version using STM Hardware Abstract Layer
+*/
+
 /* Include section */
 #include <uart_bluetooth.h>
 

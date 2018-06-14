@@ -1,3 +1,10 @@
+/*
+* Adam Luczak
+* Laboratory stand with Cortex-M0 Microcontroller and E-Paper display
+* Master Thesis 2018
+* High-level version using STM Hardware Abstract Layer
+*/
+
 /* Include section */
 #include <stm32l0xx_hal.h>
 #include <string.h>
@@ -7,9 +14,6 @@
 #define INIT_MSG "Initialization done.\r\n"
 #define COMMAND_RECV_MSG "Command received.\r\n"
 #define COMMAND_INVALID_MSG "Invalid command.\r\n"
-#define COMMAND_LED_INVALID_MSG "LED command invalid.\r\n"
-#define COMMAND_DAC_ON_MSG "DAC output - ON.\r\n"
-#define COMMAND_DAC_OFF_MSG "DAC output - OFF.\r\n"
 #define BAUDRATE 38400
 #define TIMEOUT 20
 
